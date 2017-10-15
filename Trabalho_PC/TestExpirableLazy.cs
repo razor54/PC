@@ -31,7 +31,7 @@ namespace Trabalho_PC
 
             Thread.Sleep(1000);
             
-           Assert.AreEqual(3,_results.Count);
+           Assert.AreEqual(3,_results3.Count);
         }
 
         private readonly ConcurrentQueue<string> _results = new ConcurrentQueue<string>();
