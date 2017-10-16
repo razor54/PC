@@ -13,7 +13,10 @@ namespace Pairing
         private readonly LinkedList<U> _uList = new LinkedList<U>();
         private readonly object _monitor = new object();
 
-        private Tuple<T,U> pairTuple = new Tuple<T,U>(default(T),default(U));
+        private T _elemt1;
+        private U _element2;
+
+        
 
         // throws ThreadInterruptedException, TimeoutException
         public Tuple<T, U> Provide(T value, int timeout)
@@ -25,30 +28,51 @@ namespace Pairing
                 if (node == _tList.First && _uList.Any())
                 {
                     LinkedListNode<U> uListFirst = _uList.First;
+
+                    _elemt1 = node.Value;
+
                     Monitor.Enter(uListFirst);
                     Monitor.Pulse(uListFirst);
                     Monitor.Exit(uListFirst);
 
                     Monitor.Enter(node);
-                    bool isNotTimeout = Monitor.Wait(node,timeout);
+
+                    Monitor.Exit(_monitor);
+                    bool isNotTimeout = Monitor.Wait(node, timeout);
+                    Monitor.Enter(_monitor);
+
                     if (!isNotTimeout)
                     {
                         //tirar os pairings
-                        pairTuple.Item1=null;
+                        _elemt1 = default(T);
+                        _element2 = default(U);
 
+                        return null;
                     }
 
+                    //verify if elems are null or not
+                    //if they are it means there was a timeout or exception
+                    //???
+                    if (_elemt1.Equals(default(T)) || _element2.Equals(default(U)))
+                    {
+                        //threre was something wrong so return null
+                        return null;
+                    }
+                    //retirar os valores para a proxima iteraçao
+                    return new Tuple<T, U>(_elemt1,_element2);
                 }
-
 
             }
             catch (ThreadInterruptedException)
             {
-
+                _elemt1 = default(T);
+                _element2 = default(U);
                 throw;
             }
             finally
             {
+                _tList.Remove(node);
+                Monitor.Exit(node);
                 Monitor.Exit(_monitor);
             }
         }
@@ -63,13 +87,13 @@ namespace Pairing
                 if (node == _uList.First && _tList.Any())
                 {
                     LinkedListNode<T> tListFirst = _tList.First;
-
                 }
-
             }
-            catch (ThreadInterruptedException e)
+            catch (ThreadInterruptedException)
             {
-                Console.WriteLine(e);
+                _elemt1 = default(T);
+                _element2 = default(U);
+
                 throw;
             }
             finally
@@ -77,7 +101,5 @@ namespace Pairing
                 Monitor.Exit(_monitor);
             }
         }
-        
     }
-    
 }
