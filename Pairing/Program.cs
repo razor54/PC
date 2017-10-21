@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Configuration;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,29 +11,31 @@ namespace Pairing
     class Program
     {
         private static readonly Pairing<int,string> pairing = new Pairing<int, string>();
+
         static void Main(string[] args)
         {
 
             
             
-            Thread firsThread = new Thread( ()=> Console.WriteLine(pairing.Provide(5, 999999999)));
-            Thread second = new Thread( ()=> Console.WriteLine(pairing.Provide("cinco", 999999999)));
-            /*
-            Thread third = new Thread(() => Console.WriteLine(pairing.Provide(6, 999999999)));
-            Thread fourth = new Thread(() => Console.WriteLine(pairing.Provide("seis", 999999999)));
+            Thread firsThread = new Thread( ()=> Console.WriteLine(pairing.Provide(5,100 )));
+            Thread second = new Thread( ()=> Console.WriteLine(pairing.Provide("cinco", 100)));
+           
+            Thread third = new Thread(() => Console.WriteLine(pairing.Provide(6, 100)));
+            Thread fourth = new Thread(() => Console.WriteLine(pairing.Provide("seis", 100)));
 
-            Thread fifth = new Thread(() => Console.WriteLine(pairing.Provide(7, 999999999)));
-            Thread sixth = new Thread(() => Console.WriteLine(pairing.Provide("sete", 999999999)));
-
-    */
-            second.Start();
+            Thread fifth = new Thread(() => Console.WriteLine(pairing.Provide(7, 100)));
+            Thread sixth = new Thread(() => Console.WriteLine(pairing.Provide("sete", 100)));
+            
+    
             firsThread.Start();
-            /*
-            third.Start();
+           
+            
+            second.Start();
+             third.Start();
             fourth.Start();
             fifth.Start();
             sixth.Start();
-            */
+            
             Console.ReadKey();
            
         }

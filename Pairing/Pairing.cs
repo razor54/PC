@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using SyncUtils;
+using SyncUtils = SyncUtils.SyncUtils;
 
 namespace Pairing
 {
@@ -13,286 +15,180 @@ namespace Pairing
         private readonly LinkedList<U> _uList = new LinkedList<U>();
         private readonly object _monitor = new object();
 
-        private T _elemt1;
+        private T _element1;
         private U _element2;
 
+        private Tuple<T, U> tuple;
 
         // throws ThreadInterruptedException, TimeoutException
         public Tuple<T, U> Provide(T value, int timeout)
         {
             Monitor.Enter(_monitor);
-            LinkedListNode<T> node = _tList.AddLast(value);
 
-
-            Tuple<T, U> toRet = null;
             try
             {
-                LinkedListNode<U> uListFirst;
-
-                if (node == _tList.First)
+                TimeoutInstant timeoutInstant = new TimeoutInstant(timeout);
+                var last = _tList.AddLast(value);
+                if (last == _tList.First && !timeoutInstant.IsTimeout)
                 {
-                    _elemt1 = node.Value;
-
-                    
-
-                    Monitor.Enter(_tList);
-                    Monitor.Pulse(_tList);
-                    Monitor.Exit(_tList);
-
-                    if ((uListFirst = _uList.First) != null)
-                    {
-                        Monitor.Enter(uListFirst);
-                        Monitor.Pulse(uListFirst);
-                        Monitor.Exit(uListFirst);
-                    }
-                     Monitor.Exit(_monitor);
-                    Monitor.Enter(_uList);
-                   
-
-                    bool isNotTimeout = Monitor.Wait(_uList, timeout);
-
-                    Monitor.Exit(_uList);
-                    Monitor.Enter(_monitor);
-
-                    if (!isNotTimeout)
-                    {
-                        //tirar os pairings
-                        _elemt1 = default(T);
-                        _element2 = default(U);
-                        toRet = null;
-                        return null;
-                    }
-
-                    //verify if elems are null or not
-                    //if they are it means there was a timeout or exception
-                    //???
-                    if (_elemt1 == null || _elemt1.Equals(default(T)) || _element2 == null ||
-                        _element2.Equals(default(U)))
-                    {
-                        toRet = null;
-                        //threre was something wrong so return null
-                        return null;
-                    }
-                    //retirar os valores para a proxima iteraçao
-                    Console.WriteLine("SAIU PPOR PROVIDE T -- 1");
-                    toRet = new Tuple<T, U>(_elemt1, _element2);
-                    return toRet;
-                }
-                Monitor.Exit(_monitor);
-
-
-                Monitor.Enter(_uList);
-
-                bool isnotTimeout = Monitor.Wait(_uList, timeout);
-                Monitor.Exit(_uList);
-
-                Monitor.Enter(node);
-                Monitor.Wait(node, timeout);
-                Monitor.Exit(node);
-                Monitor.Enter(_monitor);
-
-                if (!isnotTimeout)
-                {
-                    //tirar os pairings
-                    _elemt1 = default(T);
-                    _element2 = default(U);
-
-                    return null;
-                }
-                Monitor.Exit(_monitor);
-
-                Monitor.Enter(_tList);
-                Monitor.Pulse(_tList);
-                Monitor.Exit(_tList);
-
-                uListFirst = _uList.First;
-
-                Monitor.Enter(uListFirst);
-                Monitor.Pulse(uListFirst);
-                Monitor.Exit(uListFirst);
-
-                Monitor.Enter(_monitor);
-                Console.WriteLine("SAIU PPOR PROVIDE T---2");
-                return new Tuple<T, U>(_elemt1, _element2);
-                /*
-                Monitor.Enter(node);
-
-                Monitor.Exit(_monitor);
-                bool isNotTimeouts = Monitor.Wait(node, timeout);
-                Monitor.Enter(_monitor);
-
-                if (!isNotTimeouts)
-                {
-                    //tirar os pairings
-                    _elemt1 = default(T);
-                    _element2 = default(U);
-                    toRet = null;
-                    return null;
+                    return TupleGetter(value, timeoutInstant, last);
                 }
 
-                //verify if elems are null or not
-                //if they are it means there was a timeout or exception
-                //???
-                if (_elemt1.Equals(default(T)) || _element2.Equals(default(U)))
-                {
-                    toRet = null;
-                    //threre was something wrong so return null
-                    return null;
-                }
-                uListFirst = _uList.First;
-                //retirar os valores para a proxima iteraçao
-                Monitor.Enter(uListFirst);
-                Monitor.Pulse(uListFirst);
-                Monitor.Exit(uListFirst);
-                toRet = new Tuple<T, U>(_elemt1, _element2);
-                return toRet;
-                */
+                if (timeoutInstant.IsTimeout) return Failure(last);
+
+
+                global::SyncUtils.SyncUtils.Wait(_monitor, last, timeoutInstant.Remaining);
+
+                //you have to be first
+                return TupleGetter(value, timeoutInstant, last);
             }
-
-            catch (ThreadInterruptedException)
+            catch (Exception e)
             {
-                _elemt1 = default(T);
-                _element2 = default(U);
-                throw;
+                Console.WriteLine(e);
+                Console.WriteLine("Exceçao");
+                throw e;
             }
             finally
             {
-                _tList.Remove(node);
-                if (_tList.Any())
-                {
-                    Monitor.Enter(_tList.First);
-                    Monitor.Pulse(_tList.First);
-                    Monitor.Exit(_tList.First);
-                }
                 Monitor.Exit(_monitor);
             }
         }
 
+        private Tuple<T, U> Failure<TX>(LinkedListNode<TX> last)
+        {
+            _element1 = default(T);
+            _element2 = default(U);
 
-        /*
-         * trocar os valores elem1 e element2 para um objeto que faça a validaçao das threads acessoras
-         * ou seja uma thread que nao pertença ao par nao pode aceder aquele valor.
-         * 
-         */
+            Console.WriteLine("deu null para  {0} no T", last.Value);
+            return tuple = null;
+        }
+
+        private Tuple<T, U> TupleGetter(T value, TimeoutInstant timeoutInstant, LinkedListNode<T> last)
+        {
+            _element1 = value;
+
+            if (timeoutInstant.IsTimeout) return tuple = null;
+
+            if (_uList.Any())
+            {
+
+                if (_tList.Count == 1)
+                {
+                    Monitor.Pulse(_monitor);
+                }
+                else
+                    global::SyncUtils.SyncUtils.Wait(_monitor, _uList, timeoutInstant.Remaining);
+
+
+                 tuple = new Tuple<T, U>(_element1, _element2);
+
+
+                global::SyncUtils.SyncUtils.Pulse(_monitor, _tList);
+
+                _tList.Remove(last);
+                
+
+                if (_tList.Any())
+                    global::SyncUtils.SyncUtils.Pulse(_monitor, _tList.First);
+
+                return tuple;
+            }
+           
+            //esperar para poder continuar
+            Monitor.Wait(_monitor,timeoutInstant.Remaining);
+
+
+            tuple = new Tuple<T, U>(_element1, _element2);
+
+
+            global::SyncUtils.SyncUtils.Pulse(_monitor, _tList);
+
+            _tList.Remove(last);
+
+
+            if (_tList.Any())
+                global::SyncUtils.SyncUtils.Pulse(_monitor, _tList.First);
+
+            return tuple;
+
+
+
+        }
+
 
         public Tuple<T, U> Provide(U value, int timeout)
         {
-            int targetTime = timeout + Environment.TickCount;
-
             Monitor.Enter(_monitor);
-            LinkedListNode<U> node = _uList.AddLast(value);
-
-            Tuple<T, U> toRet = null;
 
             try
             {
-                LinkedListNode<T> tListFirst ;
-                if (node == _uList.First)
+                TimeoutInstant timeoutInstant = new TimeoutInstant(timeout);
+
+                var last = _uList.AddLast(value);
+                //FIFO ORDER
+                if (last == _uList.First && !timeoutInstant.IsTimeout)
                 {
-                    _element2 = node.Value;
-
-                   
-
-                    Monitor.Enter(_uList);
-                    Monitor.Pulse(_uList);
-                    Monitor.Exit(_uList);
-
-                    if ((tListFirst = _tList.First) != null)
-                    {
-                        Monitor.Enter(tListFirst);
-                        Monitor.Pulse(tListFirst);
-                        Monitor.Exit(tListFirst);
-                    }
-
-                    Monitor.Exit(_monitor);
-                    Monitor.Enter(_tList);
-
-
-                    bool isNotTimeout = Monitor.Wait(_tList, timeout);
-                    Monitor.Exit(_tList);
-                    Monitor.Enter(_monitor);
-
-                    if (!isNotTimeout)
-                    {
-                        //tirar os pairings
-                        _elemt1 = default(T);
-                        _element2 = default(U);
-                        toRet = null;
-                        return null;
-                    }
-
-                    //verify if elems are null or not
-                    //if they are it means there was a timeout or exception
-                    //???
-                    if (_elemt1 == null || _elemt1.Equals(default(T)) || _element2 == null ||
-                        _element2.Equals(default(U)))
-                    {
-                        //threre was something wrong so return null
-                        toRet = null;
-                        return null;
-                    }
-                    toRet = new Tuple<T, U>(_elemt1, _element2);
-                    ;
-                    //retirar os valores para a proxima iteraçao
-                    Console.WriteLine("SAIU PPOR PROVIDE U---1");
-                    return toRet;
+                    return TupleGetter(value, timeoutInstant, last);
                 }
 
-                Monitor.Exit(_monitor);
+                Console.WriteLine("Not first no U ");
+
+                if (timeoutInstant.IsTimeout) return Failure(last);
 
 
-                Monitor.Enter(_tList);
-
-                bool isnotTimeout = Monitor.Wait(_tList, timeout);
-                Monitor.Exit(_tList);
-
-                Monitor.Enter(node);
-                Monitor.Wait(node, timeout);
-                Monitor.Exit(node);
-
-                Monitor.Enter(_monitor);
-                if (!isnotTimeout)
-                {
-                    //tirar os pairings
-                    _elemt1 = default(T);
-                    _element2 = default(U);
-
-                    return null;
-                }
-                tListFirst = _tList.First;
-                Monitor.Exit(_monitor);
+                global::SyncUtils.SyncUtils.Wait(_monitor, last, timeoutInstant.Remaining);
 
 
-                Monitor.Enter(_uList);
-                Monitor.Pulse(_uList);
-                Monitor.Exit(_uList);
-
-                Monitor.Enter(tListFirst);
-                Monitor.Pulse(tListFirst);
-                Monitor.Exit(tListFirst);
-
-                Monitor.Enter(_monitor);
-                Console.WriteLine("SAIU PPOR PROVIDE U---2");
-                return new Tuple<T, U>(_elemt1, _element2);
+                return TupleGetter(value, timeoutInstant, last);
             }
-            catch (ThreadInterruptedException)
-            {
-                _elemt1 = default(T);
-                _element2 = default(U);
 
+
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                Console.WriteLine("Exceçao");
                 throw;
             }
             finally
             {
-                _uList.Remove(node);
-                if (_uList.Any())
-                {
-                    Monitor.Enter(_uList.First);
-                    Monitor.Pulse(_uList.First);
-                    Monitor.Exit(_uList.First);
-                }
                 Monitor.Exit(_monitor);
             }
+        }
+
+        private Tuple<T, U> TupleGetter(U value, TimeoutInstant timeoutInstant, LinkedListNode<U> last)
+        {
+            _element2 = value;
+            if (_tList.Any())
+            {
+                //Nao tinha ninguem antes na fila e por isso o t viu que nao havia ninguem nesta lista de u
+                if (_uList.Count == 1)
+                {
+                    Monitor.Pulse(_monitor);
+                    
+                }
+                else
+                    global::SyncUtils.SyncUtils.Pulse(_monitor, _uList);
+
+                global::SyncUtils.SyncUtils.Wait(_monitor, _tList, timeoutInstant.Remaining);
+
+
+                _uList.Remove(last);
+
+                if (_uList.Any())
+                    global::SyncUtils.SyncUtils.Pulse(_monitor, _uList.First);
+
+                if (tuple == null) Console.WriteLine("Tuple null");
+                return tuple;
+            }
+
+            Monitor.Wait(_monitor,timeoutInstant.Remaining);
+
+            _uList.Remove(last);
+
+            if (_uList.Any())
+                global::SyncUtils.SyncUtils.Pulse(_monitor, _uList.First);
+
+            return tuple;
         }
     }
 }
