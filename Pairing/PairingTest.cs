@@ -11,14 +11,14 @@ namespace Pairing
 {
     class PairingTest
     {
-        private Pairing<int, string> pairing = new Pairing<int, string>();
+        private Pairing2<int, string> pairing = new Pairing2<int, string>();
 
         ConcurrentQueue<Tuple<int, string>> queue = new ConcurrentQueue<Tuple<int, string>>();
 
         [Test]
         public void testPairing()
         {
-            pairing = new Pairing<int, string>();
+            pairing = new Pairing2<int, string>();
             int MAX = 50;
 
             for (int i = 1; i < MAX + 1; i++)
@@ -70,7 +70,7 @@ namespace Pairing
         [Test]
         public void testPairing2()
         {
-            pairing = new Pairing<int, string>();
+            pairing = new Pairing2<int, string>();
             int MAX = 50;
 
             Thread firsThread = new Thread(fun);
@@ -115,40 +115,6 @@ namespace Pairing
             {
                 Assert.AreEqual(array[i], array[i + 1]);
             }
-
-        }
-
-
-
-        [Test]
-        public void solamente()
-        {
-            object obj = new object();
-            Thread t1 = new Thread(() =>
-            {
-                Monitor.Enter(obj);
-                Monitor.Wait(obj);
-                Console.WriteLine("T1 is done");
-                Monitor.Exit(obj);
-                
-            });
-            Thread t2 = new Thread(() =>
-            {
-                Monitor.Enter(obj);
-                
-                Monitor.Pulse(obj);
-                
-                Console.WriteLine("T2 is done");
-
-                Monitor.Exit(obj);
-            });
-
-            t2.Start();
-           
-            t1.Start();
-            t1.Join();
-            t2.Join();
-
 
         }
 
