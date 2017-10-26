@@ -67,14 +67,16 @@ namespace Pairing
             queue.Enqueue(q);
         }
 
+       
+
         [Test]
         public void testPairing2()
         {
             pairing = new Pairing2<int, string>();
             int MAX = 50;
 
-            Thread firsThread = new Thread(fun);
-            Thread second = new Thread(fun2);
+            //Thread firsThread = new Thread(fun);
+            //Thread second = new Thread(fun2);
 
            
             Thread f4th = new Thread(()=>funGen("tres",1000));
@@ -85,8 +87,8 @@ namespace Pairing
             Thread f8th = new Thread(() => funGenT(4, 1000));
             Thread f9th = new Thread(() => funGenT(5, 1000));
 
-            firsThread.Start();
-            second.Start();
+            //firsThread.Start();
+            //second.Start();
 
             f4th.Start();
             f5th.Start();
@@ -96,8 +98,8 @@ namespace Pairing
             f8th.Start();
             f9th.Start();
 
-            firsThread.Join();
-            second.Join();
+           // firsThread.Join();
+            //second.Join();
 
             f4th.Join();
             f5th.Join();
@@ -107,13 +109,68 @@ namespace Pairing
             f8th.Join();
             f9th.Join();
 
-            Assert.AreEqual(8, queue.Count);
+            Assert.AreEqual(6, queue.Count);
 
             var array = queue.ToArray();
 
             for (int i = 0; i < array.Length; i+=2)
             {
-                Assert.AreEqual(array[i], array[i + 1]);
+                var tuple = array[i];
+                
+                Assert.AreEqual(2, array.Count(e => e.Equals(tuple)));
+            }
+
+        }
+
+        [Test]
+        public void failTest()
+        {
+            pairing = new Pairing2<int, string>();
+            int MAX = 50;
+
+            //Thread firsThread = new Thread(fun);
+            //Thread second = new Thread(fun2);
+
+
+            Thread f4th = new Thread(() => funGen("tres", 100));
+            Thread f5th = new Thread(() => funGen("quatro", 100));
+            Thread f6th = new Thread(() => funGen("nove", 100));
+
+            Thread f7th = new Thread(() => funGenT(3, 0));
+            Thread f8th = new Thread(() => funGenT(4, 100));
+            Thread f9th = new Thread(() => funGenT(5, 100));
+
+            //firsThread.Start();
+            //second.Start();
+
+            f4th.Start();
+            f5th.Start();
+            f6th.Start();
+
+            f7th.Start();
+            f8th.Start();
+            f9th.Start();
+
+            // firsThread.Join();
+            //second.Join();
+
+            f4th.Join();
+            f5th.Join();
+            f6th.Join();
+
+            f7th.Join();
+            f8th.Join();
+            f9th.Join();
+
+            Assert.AreEqual(6, queue.Count);
+
+            var array = queue.ToArray();
+
+            for (int i = 0; i < array.Length; i += 2)
+            {
+                var tuple = array[i];
+
+                Assert.AreEqual(2, array.Count(e => e.Equals(tuple)));
             }
 
         }

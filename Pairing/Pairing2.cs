@@ -20,8 +20,6 @@ namespace Pairing
         private readonly LinkedList<Tuple<T, U>> _tuples = new LinkedList<Tuple<T, U>>();
 
 
-        private Tuple<T, U> _tuple;
-
         // throws ThreadInterruptedException, TimeoutException
         public Tuple<T, U> Provide(T value, int timeout)
         {
@@ -31,58 +29,36 @@ namespace Pairing
             {
                 TimeoutInstant timeoutInstant = new TimeoutInstant(timeout);
                 var last = _tList.AddLast(value);
-                LinkedListNode<U> uListFirst;
                 T curr = last.Value;
-
+                Tuple<T, U> tuple;
                 if (_uList.Any())
                 {
-                    uListFirst = _uList.First;
+                    var uListFirst = _uList.First;
                     global::SyncUtils.SyncUtils.Pulse(_monitor, uListFirst);
                     _uList.RemoveFirst();
+                    _tList.Remove(last);
+                    tuple = new Tuple<T, U>(curr, uListFirst.Value);
+                    _tuples.AddLast(tuple);
 
+                    if (timeoutInstant.IsTimeout) return null;
 
-                    if (_tuples.Any(tuple => tuple.Item1.Equals(curr)))
-                    {
-                        var t = _tuples.First(tuple => tuple.Item1.Equals(curr));
-                        global::SyncUtils.SyncUtils.Pulse(_monitor, t);
-                        return t;
-                    }
-
-                    _tuple = new Tuple<T, U>(curr, uListFirst.Value);
-
-                    _tuples.AddLast(_tuple);
-                    global::SyncUtils.SyncUtils.Wait(_monitor, _tuple, timeoutInstant.Remaining);
-
-                    return _tuple;
+                    global::SyncUtils.SyncUtils.Wait(_monitor, tuple, timeoutInstant.Remaining);
+                    return tuple;
                 }
-                //    do
-                //  {
+                if (timeoutInstant.IsTimeout) return null;
+
                 global::SyncUtils.SyncUtils.Wait(_monitor, last, timeoutInstant.Remaining);
-                //    } while (!_uList.Any());
+               
 
-
-                uListFirst = _uList.First;
-                _uList.RemoveFirst();
-
-
-                if (_tuples.Any(tuple => tuple.Item1.Equals(curr)))
-                {
-                    var t = _tuples.First(tuple => tuple.Item1.Equals(curr));
-                    global::SyncUtils.SyncUtils.Pulse(_monitor, t);
-                    return t;
-                }
-
-                _tuple = new Tuple<T, U>(curr, uListFirst.Value);
-                _tuples.AddLast(_tuple);
-                global::SyncUtils.SyncUtils.Wait(_monitor, _tuple, timeoutInstant.Remaining);
-
-                return _tuple;
+                tuple = _tuples.First(t => t.Item1.Equals(curr));
+                global::SyncUtils.SyncUtils.Pulse(_monitor, tuple);
+                return tuple;
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
                 Console.WriteLine("Exceçao");
-                throw e;
+                return null;
             }
             finally
             {
@@ -101,54 +77,31 @@ namespace Pairing
 
                 var last = _uList.AddLast(value);
                 var curr = last.Value;
+                Tuple<T, U> tuple;
 
-
-                LinkedListNode<T> tListFirst;
                 if (_tList.Any())
                 {
-                    tListFirst = _tList.First;
+                    var tListFirst = _tList.First;
                     global::SyncUtils.SyncUtils.Pulse(_monitor, tListFirst);
                     _tList.RemoveFirst();
+                    _uList.Remove(last);
+                    tuple = new Tuple<T, U>(tListFirst.Value, curr);
+                    _tuples.AddLast(tuple);
+                    if (timeoutInstant.IsTimeout) return null;
+                    global::SyncUtils.SyncUtils.Wait(_monitor, tuple, timeoutInstant.Remaining);
 
-
-                    if (_tuples.Any(tuple => tuple.Item2.Equals(curr)))
-                    {
-                        var t = _tuples.First(tuple => tuple.Item2.Equals(curr));
-                        global::SyncUtils.SyncUtils.Pulse(_monitor, t);
-                        return t;
-                    }
-
-
-                    _tuple = new Tuple<T, U>(tListFirst.Value, curr);
-                    _tuples.AddLast(_tuple);
-                    global::SyncUtils.SyncUtils.Wait(_monitor, _tuple, timeoutInstant.Remaining);
-                    return _tuple;
+                    return tuple;
                 }
-                // do
-                // {
+
+               
+                if (timeoutInstant.IsTimeout) return null;
                 global::SyncUtils.SyncUtils.Wait(_monitor, last, timeoutInstant.Remaining);
 
-                //  } while (!_uList.Any());
+                
 
-
-                tListFirst = _tList.First;
-                _tList.RemoveFirst();
-
-                if (_tuples.Any(tuple => tuple.Item2.Equals(curr)))
-                {
-                    var t = _tuples.First(tuple => tuple.Item2.Equals(curr));
-                    global::SyncUtils.SyncUtils.Pulse(_monitor, t);
-                    return t;
-                }
-
-
-                _tuple = new Tuple<T, U>(tListFirst.Value, curr);
-                _tuples.AddLast(_tuple);
-
-                //retornar apenas quando os dois providers se sincronizam
-                global::SyncUtils.SyncUtils.Wait(_monitor, _tuple, timeoutInstant.Remaining);
-
-                return _tuple;
+                 tuple = _tuples.First(t => t.Item2.Equals(curr));
+                global::SyncUtils.SyncUtils.Pulse(_monitor, tuple);
+                return tuple;
             }
 
 
@@ -156,7 +109,7 @@ namespace Pairing
             {
                 Console.WriteLine(e);
                 Console.WriteLine("Exceçao");
-                throw;
+                return null;
             }
             finally
             {
