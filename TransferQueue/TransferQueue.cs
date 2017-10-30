@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Configuration;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using SyncUtils;
+using SyncUtils = SyncUtils.SyncUtils;
 
 namespace TransferQueue
 {
@@ -41,42 +44,27 @@ namespace TransferQueue
             //throws exception if Interrupted thread
 
             //if !sucess message should not stay on list
+            TimeoutInstant timeoutInstant = new TimeoutInstant(timeout);
 
             Monitor.Enter(_monitor);
 
             LinkedListNode<T> node = _queue.AddLast(msg);
 
-            Monitor.Enter(node);
+           
             try
             {
                 //if takeQueue is not empty notify the first elem
                 if (_takeQueue.Count != 0 && node == _queue.First)
                 {
                     object takeQueueCondition = _takeQueue.First.Value;
-                    Monitor.Enter(takeQueueCondition);
-                    Monitor.Pulse(takeQueueCondition);
-                    Monitor.Exit(takeQueueCondition);
+                    global::SyncUtils.SyncUtils.Pulse(_monitor, takeQueueCondition);
                 }
 
-                //else wait
-                Monitor.Exit(_monitor);
 
-                bool isNotTimeout = Monitor.Wait(node, timeout);
-                //There might be a thread waiting to enter in the lock node while using lock monitor leading to dead lock...
-                Monitor.Exit(node);
-                //...so exit here and then reenter solves that problem
-                Monitor.Enter(_monitor);
+                if (timeoutInstant.IsTimeout) return false;
+                global::SyncUtils.SyncUtils.Wait(_monitor, node,timeoutInstant.Remaining);
 
-                Monitor.Enter(node);
-
-                if (isNotTimeout)
-                    return true;
-
-                Console.WriteLine("WAS TIMEOUT on {0}", Thread.CurrentThread.ManagedThreadId);
-
-                if (node.List != null)
-                    _queue.Remove(node);
-                return false;
+                return true;
             }
             catch (ThreadInterruptedException)
             {
@@ -86,21 +74,20 @@ namespace TransferQueue
             }
             finally
             {
-                // _queue.Remove(node);
-                Monitor.Exit(node);
                 Monitor.Exit(_monitor);
             }
         }
 
         public bool Take(int timeout, out T rmsg)
         {
+            TimeoutInstant timeoutInstant = new TimeoutInstant(timeout);
             Monitor.Enter(_monitor);
             //when there is a message and is first in takeQueue -- condition
             object condition = new object();
             LinkedListNode<object> node = _takeQueue.AddLast(condition);
             try
             {
-                Monitor.Enter(condition);
+               
                 //if first and message queue not empty -> can get message right away
                 if (_takeQueue.First == node && _queue.Count != 0)
                 {
@@ -108,16 +95,14 @@ namespace TransferQueue
                     return true;
                 }
 
-
-                Monitor.Exit(_monitor);
-                bool notTimeout = Monitor.Wait(condition, timeout);
-                Monitor.Enter(_monitor);
-                if (!notTimeout)
+                if (timeoutInstant.IsTimeout)
                 {
-                    Console.WriteLine("IS TIMEOUT ON TAKE ----> {0}", Thread.CurrentThread.ManagedThreadId);
                     rmsg = default(T);
                     return false;
                 }
+               
+                global::SyncUtils.SyncUtils.Wait(_monitor, condition, timeoutInstant.Remaining);
+
 
                 ReceiveMessageSucessfuly(out rmsg);
                 return true;
@@ -130,7 +115,7 @@ namespace TransferQueue
             finally
             {
                 _takeQueue.Remove(node);
-                Monitor.Exit(condition);
+               
                 Monitor.Exit(_monitor);
             }
 
@@ -149,12 +134,8 @@ namespace TransferQueue
         private void ReceiveMessageSucessfuly(out T rmsg)
         {
             var message = _queue.First;
-
-            Monitor.Enter(message);
             rmsg = message.Value;
-            Monitor.Pulse(message);
-            Monitor.Exit(message);
-
+            global::SyncUtils.SyncUtils.Pulse(_monitor, message);
             _queue.Remove(message);
         }
     }

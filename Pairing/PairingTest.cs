@@ -15,43 +15,8 @@ namespace Pairing
 
         ConcurrentQueue<Tuple<int, string>> queue = new ConcurrentQueue<Tuple<int, string>>();
 
-        [Test]
-        public void testPairing()
-        {
-            pairing = new Pairing2<int, string>();
-            int MAX = 50;
+       
 
-            for (int i = 1; i < MAX + 1; i++)
-            {
-                Thread firsThread = new Thread(fun);
-                Thread second = new Thread(fun2);
-
-                firsThread.Start();
-                second.Start();
-
-                firsThread.Join();
-                second.Join();
-
-                Assert.AreEqual(2, queue.Count);
-
-                Assert.AreEqual(queue.First(), queue.Last());
-                queue = new ConcurrentQueue<Tuple<int, string>>();
-            }
-        }
-
-        public void fun()
-        {
-            var provide = pairing.Provide(5, 1000);
-            Console.WriteLine("O Provide de 5 deu {0}", provide);
-            queue.Enqueue(provide);
-        }
-
-        public void fun2()
-        {
-            var q = pairing.Provide("cinco", 1000);
-            Console.WriteLine("O Provide de cinco deu {0}", q);
-            queue.Enqueue(q);
-        }
 
         public void funGen(string x, int y)
         {
@@ -70,13 +35,12 @@ namespace Pairing
        
 
         [Test]
-        public void testPairing2()
+        public void testPairing()
         {
+            queue = new ConcurrentQueue<Tuple<int, string>>();
             pairing = new Pairing2<int, string>();
             int MAX = 50;
 
-            //Thread firsThread = new Thread(fun);
-            //Thread second = new Thread(fun2);
 
            
             Thread f4th = new Thread(()=>funGen("tres",1000));
@@ -87,8 +51,7 @@ namespace Pairing
             Thread f8th = new Thread(() => funGenT(4, 1000));
             Thread f9th = new Thread(() => funGenT(5, 1000));
 
-            //firsThread.Start();
-            //second.Start();
+           
 
             f4th.Start();
             f5th.Start();
@@ -98,8 +61,6 @@ namespace Pairing
             f8th.Start();
             f9th.Start();
 
-           // firsThread.Join();
-            //second.Join();
 
             f4th.Join();
             f5th.Join();
@@ -122,58 +83,6 @@ namespace Pairing
 
         }
 
-        [Test]
-        public void failTest()
-        {
-            pairing = new Pairing2<int, string>();
-            int MAX = 50;
-
-            //Thread firsThread = new Thread(fun);
-            //Thread second = new Thread(fun2);
-
-
-            Thread f4th = new Thread(() => funGen("tres", 100));
-            Thread f5th = new Thread(() => funGen("quatro", 100));
-            Thread f6th = new Thread(() => funGen("nove", 100));
-
-            Thread f7th = new Thread(() => funGenT(3, 0));
-            Thread f8th = new Thread(() => funGenT(4, 100));
-            Thread f9th = new Thread(() => funGenT(5, 100));
-
-            //firsThread.Start();
-            //second.Start();
-
-            f4th.Start();
-            f5th.Start();
-            f6th.Start();
-
-            f7th.Start();
-            f8th.Start();
-            f9th.Start();
-
-            // firsThread.Join();
-            //second.Join();
-
-            f4th.Join();
-            f5th.Join();
-            f6th.Join();
-
-            f7th.Join();
-            f8th.Join();
-            f9th.Join();
-
-            Assert.AreEqual(6, queue.Count);
-
-            var array = queue.ToArray();
-
-            for (int i = 0; i < array.Length; i += 2)
-            {
-                var tuple = array[i];
-
-                Assert.AreEqual(2, array.Count(e => e.Equals(tuple)));
-            }
-
-        }
 
     }
 }

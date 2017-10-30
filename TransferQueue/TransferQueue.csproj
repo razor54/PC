@@ -54,5 +54,11 @@
     <None Include="App.config" />
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SyncUtils\SyncUtils.csproj">
+      <Project>{D4D72282-FFD5-4B52-BBD5-C238D46D86E0}</Project>
+      <Name>SyncUtils</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
