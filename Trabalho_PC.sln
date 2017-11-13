@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pairing", "Pairing\Pairing.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SyncUtils", "SyncUtils\SyncUtils.csproj", "{D4D72282-FFD5-4B52-BBD5-C238D46D86E0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RefCountedHolder", "RefCountedHolder\RefCountedHolder.csproj", "{D6010F37-432D-486A-9BB8-BA045EB522C1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{D4D72282-FFD5-4B52-BBD5-C238D46D86E0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D4D72282-FFD5-4B52-BBD5-C238D46D86E0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D4D72282-FFD5-4B52-BBD5-C238D46D86E0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D6010F37-432D-486A-9BB8-BA045EB522C1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D6010F37-432D-486A-9BB8-BA045EB522C1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D6010F37-432D-486A-9BB8-BA045EB522C1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D6010F37-432D-486A-9BB8-BA045EB522C1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
