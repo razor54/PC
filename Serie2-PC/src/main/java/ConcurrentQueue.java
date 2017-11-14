@@ -31,7 +31,6 @@ public class ConcurrentQueue<T> {
     }
 
     private AtomicReference<Node<T>> head;
-
     private AtomicReference<Node<T>> tail;
 
     public ConcurrentQueue(){

@@ -54,5 +54,18 @@ namespace RefCountedHolder
 
 
         }
+
+        [Test]
+        public void testInterlockedExchange()
+        {
+            
+            int res = 2;
+            int valToStore = 5;
+            int s = 2;
+
+            int x = Interlocked.CompareExchange(ref res, valToStore, s);
+            Assert.AreEqual(s,x);
+        }
+
     }
 }

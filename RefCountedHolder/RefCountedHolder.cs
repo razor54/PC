@@ -21,6 +21,7 @@ namespace RefCountedHolder
         public void AddRef()
         {
             Interlocked.MemoryBarrier();
+
             if (_refCount == 0)
                 throw new InvalidOperationException();
             Interlocked.Increment(ref _refCount);
@@ -28,15 +29,24 @@ namespace RefCountedHolder
 
         public void ReleaseRef()
         {
-            Interlocked.MemoryBarrier();
-            if (_refCount == 0)
-                throw new InvalidOperationException();
+            while (true)
+            {
+                Interlocked.MemoryBarrier();
+                int count = _refCount;
+                if (count == 0)
+                    throw new InvalidOperationException();
+                int res;
+                // the values were exchanged and the refcount > 0 
+                if ((res = Interlocked.CompareExchange(ref _refCount, count - 1, count)) > 1 && res == count) return;
 
-            if (Interlocked.Decrement(ref _refCount) != 0) return;
-
-            IDisposable disposable = _value as IDisposable;
-            _value = null;
-            disposable?.Dispose();
+                if (res == count)
+                {
+                    IDisposable disposable = _value as IDisposable;
+                    _value = null;
+                    disposable?.Dispose();
+                    return;
+                }
+            }
         }
 
         public T Value
