@@ -19,6 +19,7 @@ namespace ExpirableLazyOptimized
                 new TimeSpan(0, 0, 0, 1)
             );
 
+
             [Test]
             public void Test1()
             {

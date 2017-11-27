@@ -11,14 +11,17 @@ namespace ExpirableLazyOptimized
     {
         private readonly Func<T> _provider;
         private readonly TimeSpan _timeToLive;
-
+        private readonly object _mon = new object();
         private static readonly ExpirableVal<T> Busy = new ExpirableVal<T>(default(TimeSpan), null);
         private static ExpirableVal<T> _currval;
 
+        private readonly int _maxTimeout;
         public ExpirableLazyOptimized(Func<T> provider, TimeSpan timeToLive)
         {
             _provider = provider;
             _timeToLive = timeToLive;
+            //rounds the total time and casts to int
+            _maxTimeout = Convert.ToInt32(timeToLive.TotalMilliseconds);
         }
 
         public T Value
@@ -37,7 +40,13 @@ namespace ExpirableLazyOptimized
                             return currValue;
 
                         if (Interlocked.CompareExchange(ref _currval, _currval, Busy) == Busy)
-                            continue;
+                        {
+                            Monitor.Enter(_mon);
+                            bool suceed = Monitor.Wait(_mon,_maxTimeout);
+                            Monitor.Exit(_mon);
+                            if (!suceed)continue;
+
+                        }
 
 
                         currValue = GetCurrValue();
@@ -45,7 +54,6 @@ namespace ExpirableLazyOptimized
                             return currValue;
 
                         Recalculate();
-                        return _currval.Value;
                     }
                 }
                 catch (Exception e)
@@ -58,43 +66,48 @@ namespace ExpirableLazyOptimized
 
         private T GetCurrValue()
         {
-            while (true)
+            var curr = Interlocked.CompareExchange(ref _currval, _currval, Busy);
+
+            if (curr != null && curr != Busy && !IsTimeOut())
             {
-                var curr = Interlocked.CompareExchange(ref _currval, _currval, Busy);
-
-                if (curr != null && curr != Busy && !IsTimeOut())
-                {
-                    return curr.Value;
-                }
-
-                if (curr == Busy) continue;
-
-                Recalculate();
-                if (_currval != null)
-                    return _currval.Value;
+                return curr.Value;
             }
+
+
+            curr = Interlocked.CompareExchange(ref _currval, _currval, Busy);
+            return curr != null && curr != Busy ? curr.Value : null;
         }
 
         private void Recalculate()
         {
-            //???
-            if (Interlocked.Exchange(ref _currval, Busy) == Busy) return;
+            while (Interlocked.Exchange(ref _currval, Busy) == Busy)
+            {
+                Monitor.Enter(_mon);
+                bool sucess = Monitor.Wait(_mon,_maxTimeout);
+                Monitor.Exit(_mon);
+                if(sucess)break;
+            }
 
 
             ExpirableVal<T> newVal;
             try
             {
                 newVal = new ExpirableVal<T>(GetNewExpiration(), _provider());
+                Monitor.Enter(_mon);
+                Monitor.PulseAll(_mon);
             }
 
             catch (Exception)
             {
                 Interlocked.Exchange(ref _currval, null);
-
+                Monitor.Enter(_mon);
+                Monitor.Pulse(_mon);
+                Monitor.Exit(_mon);
                 return;
             }
 
             Interlocked.CompareExchange(ref _currval, newVal, Busy);
+            Monitor.Exit(_mon);
         }
 
         private Boolean IsTimeOut()
