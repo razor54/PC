@@ -11,7 +11,9 @@ namespace ExpirableLazyOptimized
     {
         private readonly Func<T> _provider;
         private readonly TimeSpan _timeToLive;
-        private readonly object mon = new object();
+
+        private static readonly ExpirableVal<T> Busy = new ExpirableVal<T>(default(TimeSpan), null);
+        private static ExpirableVal<T> _currval;
 
         public ExpirableLazyOptimized(Func<T> provider, TimeSpan timeToLive)
         {
@@ -19,76 +21,92 @@ namespace ExpirableLazyOptimized
             _timeToLive = timeToLive;
         }
 
-        private T _value = null;
-        private TimeSpan _target;
-        private bool _isComputing = false;
-
         public T Value
         {
             get
             {
+                try
                 {
-                    try
-                    {
-                        Monitor.Enter(mon);
-                        if (_value != null && !IsTimeOut() && !_isComputing)
-                        {
-                            return _value;
-                        }
-                        else if (_isComputing)
-                        {
-                            Monitor.Wait(mon);
-                            if (!IsTimeOut() && _value != null) return _value;
+                    T currValue;
 
-                            Recalculate();
-                            return _value;
-                        }
-                        else
-                        {
-                            Recalculate();
-                            return _value;
-                        }
-                    }
-                    catch (Exception e)
+                    while (true)
                     {
-                        Console.WriteLine(e);
-                        throw;
+                        currValue = GetCurrValue();
+
+                        if (currValue != null)
+                            return currValue;
+
+                        if (Interlocked.CompareExchange(ref _currval, _currval, Busy) == Busy)
+                            continue;
+
+
+                        currValue = GetCurrValue();
+                        if (currValue != null)
+                            return currValue;
+
+                        Recalculate();
+                        return _currval.Value;
                     }
-                    finally
-                    {
-                        Monitor.Exit(mon);
-                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    throw;
                 }
             }
         } // throws InvalidOperationException, ThreadInterruptedException
 
+        private T GetCurrValue()
+        {
+            while (true)
+            {
+                var curr = Interlocked.CompareExchange(ref _currval, _currval, Busy);
+
+                if (curr != null && curr != Busy && !IsTimeOut())
+                {
+                    return curr.Value;
+                }
+
+                if (curr == Busy) continue;
+
+                Recalculate();
+                if (_currval != null)
+                    return _currval.Value;
+            }
+        }
+
         private void Recalculate()
         {
-            _isComputing = true;
-            _value = null;
+            //???
+            if (Interlocked.Exchange(ref _currval, Busy) == Busy) return;
 
-            Monitor.Exit(mon);
+
+            ExpirableVal<T> newVal;
             try
             {
-                _value = _provider();
+                newVal = new ExpirableVal<T>(GetNewExpiration(), _provider());
             }
 
             catch (Exception)
             {
-                _value = null;
-                //choose a new thread to calculate
-                Monitor.Pulse(mon);
+                Interlocked.Exchange(ref _currval, null);
+
+                return;
             }
 
-            Monitor.Enter(mon);
-            _isComputing = false;
-            Monitor.PulseAll(mon);
-            _target = _timeToLive.Add(DateTime.Now.TimeOfDay);
+            Interlocked.CompareExchange(ref _currval, newVal, Busy);
         }
 
         private Boolean IsTimeOut()
         {
-            return DateTime.Now.TimeOfDay.Ticks >= _target.Ticks;
+            if (_currval == null) return false;
+
+            return DateTime.Now.TimeOfDay.Ticks >= _currval.ValidUntil.Ticks;
+        }
+
+        private TimeSpan GetNewExpiration()
+        {
+            return _timeToLive.Add(DateTime.Now.TimeOfDay);
         }
     }
 }

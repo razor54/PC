@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -42,7 +43,7 @@ namespace ConcurrentQueue
                 Node<T> currTail = tail;
                 Node<T> tailNext = currTail.next;
 
-                Interlocked.MemoryBarrier();
+                //Interlocked.MemoryBarrier();
 
                 if (currTail == tail)
                 {
@@ -72,7 +73,7 @@ namespace ConcurrentQueue
             Node<T> currTail = tail;
             Node<T> headNext = currHead.next;
 
-            Interlocked.MemoryBarrier();
+            //Interlocked.MemoryBarrier();
 
             if (currHead == head)
             { // no dequeue
@@ -91,7 +92,7 @@ namespace ConcurrentQueue
                 {
 
                     T pValue = headNext.value;
-                    if (Interlocked.CompareExchange(ref head,headNext,currHead)==currHead)
+                    if (Interlocked.CompareExchange(ref head,headNext,currHead) == currHead)
                     {
                         return pValue;
                     }
@@ -103,13 +104,20 @@ namespace ConcurrentQueue
         // dequeue a datum - spinning if necessary
         public T dequeue()
         {
-
+            T v;
+            while ((v = tryDequeue()) == null)
+            {
+                Thread.Sleep(0);
+            }
+            return v;
         }
 
 
 
         public bool isEmpty()
         {
+            Node<T> currTail = tail;
+            return Interlocked.CompareExchange(ref head, currTail, currTail) == currTail;
         }
     }
 }

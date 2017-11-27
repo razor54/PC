@@ -20,7 +20,7 @@ namespace RefCountedHolder
 
         public void AddRef()
         {
-            Interlocked.MemoryBarrier();
+           
 
             if (_refCount == 0)
                 throw new InvalidOperationException();
@@ -31,7 +31,7 @@ namespace RefCountedHolder
         {
             while (true)
             {
-                Interlocked.MemoryBarrier();
+                
                 int count = _refCount;
                 if (count == 0)
                     throw new InvalidOperationException();
@@ -53,7 +53,7 @@ namespace RefCountedHolder
         {
             get
             {
-                Interlocked.MemoryBarrier();
+                
                 if (_refCount == 0)
                     throw new InvalidOperationException();
                 return _value;

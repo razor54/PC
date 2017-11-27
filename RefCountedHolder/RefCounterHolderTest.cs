@@ -14,7 +14,7 @@ namespace RefCountedHolder
         public void test1()
         {
             string s = "ola";
-            int UPPER = 20;
+            int UPPER = 200;
             RefCountedHolder<string> refCountedHolder = new RefCountedHolder<string>(s);
 
             for (int i = 0; i < UPPER; i++)
