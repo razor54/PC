@@ -11,12 +11,15 @@ import java.util.concurrent.RejectedExecutionException;
  */
 public class SimpleThreadPoolTests {
 
-    private static final int DEBUG_TIMEOUT = 999999999;
     private static final int RUN_TIMEOUT = 1000;
+    private static final int ITERATIONS = 100;
+
 
     @Test()
     public void SimpleThreadPoolTest1() {
         int timeout = RUN_TIMEOUT;
+        for (int i = 0; i <ITERATIONS ; i++) {
+
 
         SimpleThreadPoolExecutor threadPoolExecutor =
                 new SimpleThreadPoolExecutor(2,timeout);
@@ -41,7 +44,7 @@ public class SimpleThreadPoolTests {
 
         Thread t5 = new Thread(() -> {
             try {
-                boolean term = threadPoolExecutor.awaitTermination(timeout);
+                boolean term = threadPoolExecutor.awaitTermination(timeout*2);
                 System.out.println(term);
                 Assert.assertTrue(term);
             } catch (InterruptedException e) {
@@ -75,7 +78,7 @@ public class SimpleThreadPoolTests {
         }
 
 
-
+        }
 
     }
 

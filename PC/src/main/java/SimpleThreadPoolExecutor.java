@@ -16,9 +16,8 @@ public class SimpleThreadPoolExecutor {
     private final int maxPoolSize;
     private final int keepAliveTime;
 
-    private final List<Thread> threadList;
     private final ConcurrentLinkedQueue<Runnable> workQueue = new ConcurrentLinkedQueue<>();
-    private final List<ThreadPoolObj> threads;
+    private final ConcurrentLinkedQueue<ThreadPoolObj> threads = new ConcurrentLinkedQueue<>();
     private boolean shuttingDown = false;
 
     private boolean threadWaitingForCompletion = false;
@@ -26,13 +25,14 @@ public class SimpleThreadPoolExecutor {
     //private final Object monitor = new Object();
 
     private final Lock lock = new ReentrantLock();
+    private final Condition waiterCondition = lock.newCondition();
 
     private class ThreadPoolObj {
         final Runnable firstCommand;
         final int keepAliveTime;
         final Condition condition;
         boolean available = false;
-        //todo instance in constructor
+
         Thread thread;
 
         private ThreadPoolObj(Runnable firstCommand, Condition condition) {
@@ -46,8 +46,6 @@ public class SimpleThreadPoolExecutor {
 
         this.maxPoolSize = maxPoolSize;
         this.keepAliveTime = keepAliveTime;
-        this.threadList = new ArrayList<>(maxPoolSize);
-        this.threads = new ArrayList<>(maxPoolSize);
 
     }
 
@@ -66,6 +64,7 @@ public class SimpleThreadPoolExecutor {
             if (shuttingDown) throw new RejectedExecutionException();
             long time_target = Timeouts.start(timeout);
 
+
             List<ThreadPoolObj> availableThreads = Utilities.filter(t -> t.available, threads);
 
             //no thread available but at least a slot available
@@ -79,20 +78,15 @@ public class SimpleThreadPoolExecutor {
                 return true;
             }
 
-            // if (availableThreads.size() > 0) {
-
             Condition condition = lock.newCondition();
             waiting_executing_queue.add(condition);
             workQueue.add(command);
-            return condition.await(Timeouts.remaining(Timeouts.remaining(time_target)), TimeUnit.MILLISECONDS);
 
+            int threadsAvailable = ((int) threads.stream().filter(t -> t.available).count());
+            if (threadsAvailable < threads.size())
+                this.waiterCondition.signalAll();
 
-            //  }
-
-            //wait for available thread
-
-
-            // return false;
+            return condition.await(Timeouts.remaining(time_target), TimeUnit.MILLISECONDS);
 
 
         } catch (InterruptedException e) {
@@ -115,9 +109,13 @@ public class SimpleThreadPoolExecutor {
             long target = Timeouts.start(obj.keepAliveTime);
 
             obj.available = true;
+
+            lock.lock();
+
             while (true) {
+
                 //kill the thread and remove from list
-                lock.lock();
+
                 if (Timeouts.isTimeout(Timeouts.remaining(target))) {
                     threads.remove(obj);
                     return;
@@ -146,7 +144,15 @@ public class SimpleThreadPoolExecutor {
                     return;
                 }
 
-                lock.unlock();
+
+                try {
+                    this.waiterCondition.await(Timeouts.remaining(target),TimeUnit.MILLISECONDS);
+                } catch (InterruptedException ex){
+                    if (!shuttingDown) //To not change the state of the list
+                        threads.remove(obj);
+                    return;
+                }
+
             }
 
         } finally {
@@ -162,7 +168,7 @@ public class SimpleThreadPoolExecutor {
 
         lock.unlock();
 
-        //puts executer in shutting down mode
+        //puts executor in shutting down mode
     }
 
     public boolean awaitTermination(int timeout) throws InterruptedException {
@@ -179,21 +185,11 @@ public class SimpleThreadPoolExecutor {
         for (ThreadPoolObj t : threads) {
 
             //ficar a espera
-            //todo wait for completion
             if (Timeouts.isTimeout(Timeouts.remaining(target))) return false;
             t.thread.join(Timeouts.remaining(target));
 
-          /*
-            while (true) {
-                lock.lock();
-                if (t.available) break;
-                if (Timeouts.isTimeout(Timeouts.remaining(target))) return false;
-                lock.unlock();
-            }
-            */
         }
-        ;
-        //lock.unlock();
+
         return !Timeouts.isTimeout(Timeouts.remaining(target));
 
     }
