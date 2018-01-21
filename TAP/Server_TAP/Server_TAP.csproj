@@ -4,10 +4,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{704FB510-C373-4416-8CDF-DF6C06D3BC50}</ProjectGuid>
+    <ProjectGuid>{CE7B510C-B6EB-45BB-96B4-A2E8AD85066E}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>TAP</RootNamespace>
-    <AssemblyName>TAP</AssemblyName>
+    <RootNamespace>Server_TAP</RootNamespace>
+    <AssemblyName>Server_TAP</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -42,9 +42,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="GenericAsyncResult.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="Logger.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Server.cs" />
+    <Compile Include="Store.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
